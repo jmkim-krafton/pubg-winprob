@@ -1,93 +1,149 @@
-# pgc_wwcd_prediction
+# PUBG Win Probability Prediction
 
+Real-time win probability prediction for PUBG esports matches using Transformer-based survival analysis. Given in-game features (combat stats, positions, zone dynamics) at any point during a match, the model predicts each squad's probability of winning (WWCD - Winner Winner Chicken Dinner).
 
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Project Structure
 
 ```
-cd existing_repo
-git remote add origin https://git.projectbro.com/deep-learning/user-modeling-ai/pgc_wwcd_prediction.git
-git branch -M main
-git push -uf origin main
+pubg-winprob/
+├── src/
+│   ├── data/                  # Data loading & feature definitions
+│   │   ├── continuous_features.py   # 53 continuous feature definitions
+│   │   ├── dataset.py               # PyTorch Dataset (v1)
+│   │   ├── dataset_v2.py            # Enhanced dataset with zone distance features
+│   │   └── utils.py                 # Position/zone parsing utilities
+│   ├── models/                # Neural network architecture
+│   │   ├── backbone.py              # Transformer backbone with positional encoding
+│   │   ├── modules.py               # Fourier encoding, zone/token embeddings
+│   │   └── heads.py                 # Prediction heads (survival, hazard, classification)
+│   └── training/              # Training & evaluation pipeline
+│       ├── trainer.py               # Trainer with DDP multi-GPU support
+│       ├── losses.py                # Loss functions (MSE, Cox, Ranking, CE, etc.)
+│       ├── metrics.py               # Winner accuracy, log loss, ECE
+│       ├── evaluation.py            # Phase-wise test evaluation
+│       ├── inference.py             # Checkpoint loading & batch inference
+│       └── calibration.py           # Temperature scaling for probability calibration
+├── scripts/
+│   ├── train_mse_baseline.py        # Main training script
+│   ├── lgbm_baseline.py             # LightGBM baseline
+│   ├── run_experiments_v21.sh       # Hyperparameter grid search
+│   └── run_inference.sh             # Inference entry point
+├── data_generation/
+│   ├── feature_engineering/         # Feature extraction from match logs
+│   ├── generate_postmatch_dataset/  # Post-match JSON → CSV pipeline
+│   └── generate_competitive_dataset/# Competitive match dataset generation
+├── notebooks/
+│   ├── run_files/                   # Training pipeline notebooks
+│   ├── analysis/                    # Model evaluation & comparison
+│   ├── baselines/                   # Rule-based & LightGBM baselines
+│   ├── calibration/                 # Temperature scaling notebooks
+│   └── inference/                   # Inference demos
+├── log_data/
+│   ├── dictionaries/               # Game metadata (weapons, items, maps)
+│   ├── samples/                     # Example match JSON files
+│   └── tournamentid/               # Tournament match ID lists
+└── requirements.txt
 ```
 
-## Integrate with your tools
+## Model Architecture
 
-- [ ] [Set up project integrations](https://git.projectbro.com/deep-learning/user-modeling-ai/pgc_wwcd_prediction/-/settings/integrations)
+- **Transformer backbone** with multi-head self-attention over squads (up to 16 per match)
+- **Fourier positional encoding** for 3D player coordinates
+- **Zone embedding** for bluezone/whitezone position and radius
+- **Map embedding** for 4 PUBG maps (Erangel, Miramar, Taego, Rondo)
+- **Multiple prediction heads**: survival time regression, Cox hazard, winner classification
 
-## Collaborate with your team
+## Supported Loss Functions
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+| Loss Type | Description |
+|---|---|
+| `mse` | Survival time regression |
+| `cox` | Cox partial likelihood (full retrospective) |
+| `rank_cox` | Cox + ranking consistency penalty |
+| `weighted_cox` | Cox + time-gap weighting |
+| `ce` | Cross-entropy classification |
+| `concordance` | C-index with time-gap weighting |
+| `survival_ce` | Survival score cross-entropy |
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+
+```bash
+pip install -r requirements.txt
+```
+
+### Requirements
+
+- Python 3.9+
+- PyTorch >= 2.0.0
+- pandas, numpy, tqdm
+- captum (for GradientSHAP analysis)
+- matplotlib, seaborn (visualization)
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Training
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+```bash
+python scripts/train_mse_baseline.py \
+    --train_folder /path/to/train \
+    --test_folder /path/to/test \
+    --loss_type weighted_cox \
+    --embed_dim 256 --num_heads 4 --num_layers 2 \
+    --batch_size 64 --epochs 50 --lr 1e-3 \
+    --device cuda
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Use `--toy_ratio 0.1` for quick testing with a subset of data.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### Hyperparameter Search
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+```bash
+bash scripts/run_experiments_v21.sh
+```
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+Runs a grid search over embedding dimensions, attention heads, layers, dropout, and learning rates.
+
+### Inference
+
+```bash
+# Single CSV
+bash scripts/run_inference.sh \
+    --checkpoint_dir ./checkpoints/exp_001 \
+    --csv_path ./test_data.csv
+
+# Batch inference on folder
+bash scripts/run_inference.sh \
+    --checkpoint_dir ./checkpoints/exp_001 \
+    --folder_path ./test_folder \
+    --file_list "match1.csv match2.csv"
+```
+
+### LightGBM Baseline
+
+```bash
+python scripts/lgbm_baseline.py \
+    --train_folder /path/to/train \
+    --test_folder /path/to/test
+```
+
+## Data Format
+
+Each match is represented as a CSV with **50 time points** (10 phases, 5 per phase). Features include:
+
+- **Action features**: kills, damage dealt (by weapon type), healing, pickups
+- **Spatial features**: player positions, distance to bluezone/whitezone
+- **Squad status**: alive count, total health, armor/backpack levels
+- **Zone dynamics**: bluezone/whitezone center and radius
+
+Squads are padded to a maximum of 16 per match.
+
+## Evaluation Metrics
+
+- **Winner Accuracy**: whether the predicted winner matches the actual winner
+- **Log Loss**: cross-entropy of predicted win probabilities
+- **ECE (Expected Calibration Error)**: reliability of probability estimates
+- **Phase-wise Accuracy**: prediction performance tracked across 10 match phases
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Apache License 2.0
