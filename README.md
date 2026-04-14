@@ -38,10 +38,6 @@ pubg-winprob/
 │   ├── baselines/                   # Rule-based & LightGBM baselines
 │   ├── calibration/                 # Temperature scaling notebooks
 │   └── inference/                   # Inference demos
-├── log_data/
-│   ├── dictionaries/               # Game metadata (weapons, items, maps)
-│   ├── samples/                     # Example match JSON files
-│   └── tournamentid/               # Tournament match ID lists
 └── requirements.txt
 ```
 
