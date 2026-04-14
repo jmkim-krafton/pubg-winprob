@@ -14,6 +14,8 @@ from src.models import TransformerBackbone, SurvivalTimeHead
 from src.data.dataset import collate_fn
 from src.training.metrics import (
     compute_winner_accuracy,
+    compute_c_index,
+    compute_integrated_brier_score,
     compute_log_loss,
     compute_ece,
     compute_all_metrics,
@@ -22,7 +24,8 @@ from src.training.metrics import (
 # Constants
 NUM_PHASES = 10  # 50 time points / 5 per phase = 10 phases
 SAMPLES_PER_PHASE = 5
-METRIC_NAMES = ['accuracy', 'log_loss', 'ece']
+# Primary metrics (reported in the paper) first, followed by calibration diagnostics.
+METRIC_NAMES = ['accuracy', 'c_index', 'ibs', 'ece', 'log_loss']
 
 
 def evaluate_test_set(
@@ -156,10 +159,12 @@ def evaluate_test_set_by_match(
     For each match_id, time_points are sorted and divided into 10 phases
     (5 time points per phase, 50 total per match).
 
-    Metrics computed:
+    Metrics computed (paper reports Accuracy, C-index, and IBS):
     - Accuracy: Whether predicted winner matches actual winner
-    - Log Loss: Cross-entropy for winner prediction
-    - ECE: Expected Calibration Error
+    - C-index: Concordance index for survival-time ranking
+    - IBS: Integrated Brier Score for probabilistic predictions
+    - ECE: Expected Calibration Error (calibration diagnostic)
+    - Log Loss: Cross-entropy for winner prediction (calibration diagnostic)
 
     Args:
         backbone: Trained backbone model.

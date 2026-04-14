@@ -16,7 +16,8 @@ def __getattr__(name):
         from src.training import inference
         return getattr(inference, name)
     elif name in (
-        'compute_winner_accuracy', 'compute_log_loss', 'compute_ece', 'compute_all_metrics'
+        'compute_winner_accuracy', 'compute_log_loss', 'compute_ece',
+        'compute_c_index', 'compute_integrated_brier_score', 'compute_all_metrics'
     ):
         from src.training import metrics
         return getattr(metrics, name)
@@ -46,6 +47,8 @@ __all__ = [
     'compute_winner_accuracy',
     'compute_log_loss',
     'compute_ece',
+    'compute_c_index',
+    'compute_integrated_brier_score',
     'compute_all_metrics',
     'find_optimal_temperature',
     'calibrate_from_checkpoint',

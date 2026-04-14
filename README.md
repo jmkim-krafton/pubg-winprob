@@ -8,9 +8,9 @@ Real-time win probability prediction for PUBG esports matches using Transformer-
 pubg-winprob/
 ├── src/
 │   ├── data/                  # Data loading & feature definitions
-│   │   ├── continuous_features.py   # 53 continuous feature definitions
-│   │   ├── dataset.py               # PyTorch Dataset (v1)
-│   │   ├── dataset_v2.py            # Enhanced dataset with zone distance features
+│   │   ├── continuous_features.py   # 72 continuous feature definitions
+│   │   ├── dataset.py               # PyTorch Dataset
+│   │   ├── dataset_v2.py            # Dataset with on-the-fly zone distance features
 │   │   └── utils.py                 # Position/zone parsing utilities
 │   ├── models/                # Neural network architecture
 │   │   ├── backbone.py              # Transformer backbone with positional encoding
@@ -19,14 +19,14 @@ pubg-winprob/
 │   └── training/              # Training & evaluation pipeline
 │       ├── trainer.py               # Trainer with DDP multi-GPU support
 │       ├── losses.py                # Loss functions (MSE, Cox, Ranking, CE, etc.)
-│       ├── metrics.py               # Winner accuracy, log loss, ECE
+│       ├── metrics.py               # Accuracy, C-index, IBS, ECE, log loss
 │       ├── evaluation.py            # Phase-wise test evaluation
 │       ├── inference.py             # Checkpoint loading & batch inference
 │       └── calibration.py           # Temperature scaling for probability calibration
 ├── scripts/
 │   ├── train_mse_baseline.py        # Main training script
 │   ├── lgbm_baseline.py             # LightGBM baseline
-│   ├── run_experiments_v21.sh       # Hyperparameter grid search
+│   ├── run_experiments.sh           # Hyperparameter grid search
 │   └── run_inference.sh             # Inference entry point
 ├── data_generation/
 │   ├── feature_engineering/         # Feature extraction from match logs
@@ -98,7 +98,7 @@ Use `--toy_ratio 0.1` for quick testing with a subset of data.
 ### Hyperparameter Search
 
 ```bash
-bash scripts/run_experiments_v21.sh
+bash scripts/run_experiments.sh
 ```
 
 Runs a grid search over embedding dimensions, attention heads, layers, dropout, and learning rates.
@@ -139,10 +139,18 @@ Squads are padded to a maximum of 16 per match.
 
 ## Evaluation Metrics
 
+Primary metrics reported in the paper:
+
 - **Winner Accuracy**: whether the predicted winner matches the actual winner
-- **Log Loss**: cross-entropy of predicted win probabilities
+- **C-index**: concordance between predicted and actual survival-time ranking
+- **IBS (Integrated Brier Score)**: squared error of winner probabilities integrated across time
+
+Calibration diagnostics:
+
 - **ECE (Expected Calibration Error)**: reliability of probability estimates
-- **Phase-wise Accuracy**: prediction performance tracked across 10 match phases
+- **Log Loss**: cross-entropy of predicted win probabilities
+
+All metrics are reported per phase and on average across the 10 match phases.
 
 ## License
 

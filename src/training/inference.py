@@ -1,8 +1,13 @@
 """
-Inference module for PGC models.
+Batch inference on arbitrary CSV files using a trained checkpoint.
 
-This module allows running inference on arbitrary CSV files
-using a trained model checkpoint.
+This module is the standard inference entry point: given a CSV file
+(or folder of CSV files) and a checkpoint, it runs the model and
+returns/saves per-time-step winner probabilities.
+
+For a single-match, demo-oriented variant that also exports detailed
+per-squad state (health, positions, inventory) alongside predictions
+in JSON form, use ``src.training.inference_with_json`` instead.
 """
 
 import os
